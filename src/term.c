@@ -16,6 +16,10 @@
 #include "stringbuf.h" // str_next_ofs
 
 #if defined(_WIN32)
+#if defined(__MINGW32__)
+// needed for isatty
+#include <io.h>
+#endif
 #include <windows.h>
 #define STDOUT_FILENO 1
 #else

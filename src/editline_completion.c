@@ -218,7 +218,7 @@ again:
     c = 0;
     if (more_available) {
       // generate all entries (up to the max (= 1000))
-      count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_SHOW);
+      count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_SHOW, false);
     }
     rowcol_t rc;
     edit_get_rowcol(env,eb,&rc);
@@ -251,10 +251,10 @@ again:
   if (c != 0) tty_code_pushback(env->tty,c);
 }
 
-static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab) {
+static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab, bool isHint) {
   debug_msg( "edit: complete: %zd: %s\n", eb->pos, sbuf_string(eb->input) );
   if (eb->pos < 0) return;
-  ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
+  ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_TRY, isHint);
   bool more_available = (count >= IC_MAX_COMPLETIONS_TO_TRY);
   if (count <= 0) {
     // no completions

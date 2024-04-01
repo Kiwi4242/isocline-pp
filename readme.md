@@ -2,9 +2,17 @@
 
 <img align="left" src="doc/isocline-inline.svg"/>
 
-# Isocline: a portable readline alternative.
- 
-Isocline is a pure C library that can be used as an alternative to the GNU readline library (latest release v1.0.9, 2022-01-15).
+# Isocline-pp: a portable readline alternative.
+
+Isocline-pp is a fork of the Isocline pure C library that can be used as an alternative to the GNU readline library.
+
+This version adds a C++ interface that allows more of the components to be extended in the application. This is still work in progress. Some of the following information may be out of date. 
+
+The main changes of this version are:
+- Uses a single class for the interacting with the editor with pure virtual methods that need to be subclassed.
+- Make a separate method for providing hints
+
+The features of the original library are:
 
 - Small: less than 8k lines and can be compiled as a single C file without 
   any dependencies or configuration (e.g. `gcc -c src/isocline.c`).

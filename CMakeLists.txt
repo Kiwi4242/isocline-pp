@@ -1,5 +1,6 @@
 # -----------------------------------------------------------------------------
 # Copyright (c) 2021, Daan Leijen
+# Copyright (c) 2024, John Burnell
 # -----------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.10)
 project(libisocline C CXX ASM)
@@ -7,13 +8,13 @@ project(libisocline C CXX ASM)
 set(CMAKE_C_STANDARD   99)
 set(CMAKE_CXX_STANDARD 11)
 
-option(IC_USE_CXX           "Build with C++ compiler" OFF)
+option(IC_USE_CXX           "Build with C++ compiler" ON)
 option(IC_DEBUG_UBSAN       "Build with undefined behaviour sanitizer" OFF)
 option(IC_DEBUG_ASAN        "Build with address sanitizer" OFF)
 option(IC_DEBUG_MSG         "Enable printing debug messages stderr (only if also ISOCLINE_DEBUG=1 is set in the environment)" ON)
-option(IC_SEPARATE_OBJS     "Compile with separate object files instead of one (warning: exports internal symbols)" OFF)
+option(IC_SEPARATE_OBJS     "Compile with separate object files instead of one (warning: exports internal symbols)" ON)
 
-set(ic_version "0.1")
+set(ic_version "0.2")
 set(ic_sources          src/isocline.c)    
 set(ic_example_sources  test/example.c test/test_colors.c)
 
@@ -39,7 +40,9 @@ if(IC_SEPARATE_OBJS)
               src/term.c
               src/tty_esc.c
               src/tty.c
-              src/undo.c)
+              src/undo.c
+              src_cpp/isocline_pp.cpp
+              )
 endif()
 
 if(IC_USE_CXX)
@@ -160,3 +163,8 @@ add_executable(test_colors test/test_colors.c)
 target_compile_options(test_colors PRIVATE ${ic_cflags})
 target_include_directories(test_colors PRIVATE include)
 target_link_libraries(test_colors PRIVATE isocline)
+
+add_executable(example_pp test/example_pp.cpp)
+target_compile_options(example_pp PRIVATE ${ic_cflags})
+target_include_directories(example_pp PRIVATE include)
+target_link_libraries(example_pp PRIVATE isocline)

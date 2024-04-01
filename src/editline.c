@@ -458,7 +458,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
   }
     
   // and see if we can construct a hint (displayed after a delay)
-  ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, 2);
+  ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, 2, true);
   if (count == 1) {
     const char* help = NULL;
     const char* hint = completions_get_hint(env->completions, 0, &help);
@@ -476,7 +476,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
             ssize_t newpos = sbuf_insert_at( sb, extra_hint, pos );
             if (newpos <= pos) break;
             pos = newpos;
-            count = completions_generate(env, env->completions, sbuf_string(sb), pos, 2);
+            count = completions_generate(env, env->completions, sbuf_string(sb), pos, 2, true);
             if (count == 1) {
               const char* extra_help = NULL;
               extra_hint = completions_get_hint(env->completions, 0, &extra_help);
@@ -916,7 +916,7 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
 
     // if the user tries to move into a hint with left-cursor or end, we complete it first
     if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
-      edit_generate_completions(env, &eb, true);
+      edit_generate_completions(env, &eb, true, true);
       c = KEY_NONE;      
     }
 
@@ -958,13 +958,13 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
         edit_resize(env,&eb);
         break;
       case KEY_EVENT_AUTOTAB:
-        edit_generate_completions(env, &eb, true);
+        edit_generate_completions(env, &eb, true, false);
         break;
 
       // completion, history, help, undo
       case KEY_TAB:
       case WITH_ALT('?'):
-        edit_generate_completions(env,&eb,false);
+        edit_generate_completions(env,&eb,false, false);
         break;
       case KEY_CTRL_R:
       case KEY_CTRL_S:
@@ -998,7 +998,7 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
       case KEY_RIGHT:
       case KEY_CTRL_F:
         if (eb.pos == sbuf_len(eb.input)) { 
-          edit_generate_completions( env, &eb, false );
+          edit_generate_completions( env, &eb, false, false );
         }
         else {
           edit_cursor_right(env,&eb);
@@ -1027,7 +1027,7 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
       case WITH_SHIFT(KEY_RIGHT):      
       case WITH_ALT('f'):
         if (eb.pos == sbuf_len(eb.input)) { 
-          edit_generate_completions( env, &eb, false );
+          edit_generate_completions( env, &eb, false, false );
         }
         else {
           edit_cursor_next_word(env,&eb);

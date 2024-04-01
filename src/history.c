@@ -1,12 +1,19 @@
 /* ----------------------------------------------------------------------------
   Copyright (c) 2021, Daan Leijen
+  Copyright (c) 2024, John Burnell
   This is free software; you can redistribute it and/or modify it
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
+
+// Modified to use c++ vectors
+#include <vector>
+#include <string>
+
 #include <stdio.h>
 #include <string.h>  
 #include <sys/stat.h>
+
 
 #include "../include/isocline.h"
 #include "common.h"
@@ -15,10 +22,14 @@
 
 #define IC_MAX_HISTORY (200)
 
+typedef std::vector<std::string> StrVec;
+
 struct history_s {
-  ssize_t  count;              // current number of entries in use
+  unsigned int  count;              // current number of entries in use
   ssize_t  len;                // size of elems 
-  const char** elems;         // history items (up to count)
+  // const char** elems;       // history items (up to count)
+  StrVec elems;
+
   const char*  fname;         // history file
   alloc_t* mem;
   bool     allow_duplicates;   // allow duplicate entries?
@@ -34,8 +45,9 @@ ic_private void history_free(history_t* h) {
   if (h == NULL) return;
   history_clear(h);
   if (h->len > 0) {
-    mem_free( h->mem, h->elems );
-    h->elems = NULL;
+    // mem_free( h->mem, h->elems );
+    // h->elems = NULL;
+    h->elems.clear();
     h->len = 0;
   }
   mem_free(h->mem, h->fname);
@@ -67,30 +79,35 @@ ic_private bool history_update( history_t* h, const char* entry ) {
 
 static void history_delete_at( history_t* h, ssize_t idx ) {
   if (idx < 0 || idx >= h->count) return;
-  mem_free(h->mem, h->elems[idx]);
-  for(ssize_t i = idx+1; i < h->count; i++) {
+  // mem_free(h->mem, h->elems[idx]);
+  for(unsigned int i = idx+1; i < h->count; i++) {
     h->elems[i-1] = h->elems[i];
   }
+  h->elems.erase(h->elems.begin()+h->count-1);
   h->count--;
 }
 
 ic_private bool history_push( history_t* h, const char* entry ) {
-  if (h->len <= 0 || entry==NULL)  return false;
+  // if (h->len <= 0 || entry==NULL)  return false;
+  if (entry==NULL)  return false;
   // remove any older duplicate
   if (!h->allow_duplicates) {
-    for( int i = 0; i < h->count; i++) {
-      if (strcmp(h->elems[i],entry) == 0) {
+    for(unsigned int i = 0; i < h->count; i++) {
+      // if (strcmp(h->elems[i],entry) == 0) {
+      if (h->elems[i] == entry) {
         history_delete_at(h,i);
       }
     }
   }
+#if 0  
   // insert at front
   if (h->count == h->len) {
     // delete oldest entry
     history_delete_at(h,0);    
   }
   assert(h->count < h->len);
-  h->elems[h->count] = mem_strdup(h->mem,entry);
+#endif  
+  h->elems.push_back(entry);   // mem_strdup(h->mem,entry);
   h->count++;
   return true;
 }
@@ -99,9 +116,10 @@ ic_private bool history_push( history_t* h, const char* entry ) {
 static void history_remove_last_n( history_t* h, ssize_t n ) {
   if (n <= 0) return;
   if (n > h->count) n = h->count;
-  for( ssize_t i = h->count - n; i < h->count; i++) {
-    mem_free( h->mem, h->elems[i] );
-  }
+  // for( ssize_t i = h->count - n; i < h->count; i++) {
+  //   mem_free( h->mem, h->elems[i] );
+  // }
+  h->elems.erase(h->elems.begin()+h->count-n, h->elems.end());
   h->count -= n;
   assert(h->count >= 0);    
 }
@@ -116,7 +134,8 @@ ic_private void history_clear(history_t* h) {
 
 ic_private const char* history_get( const history_t* h, ssize_t n ) {
   if (n < 0 || n >= h->count) return NULL;
-  return h->elems[h->count - n - 1];
+  // return h->elems[h->count - n - 1];
+  return h->elems[h->count - n - 1].c_str();
 }
 
 ic_private bool history_search( const history_t* h, ssize_t from /*including*/, const char* search, bool backward, ssize_t* hidx, ssize_t* hpos ) {
@@ -148,12 +167,13 @@ ic_private void history_load_from(history_t* h, const char* fname, long max_entr
   history_clear(h);
   h->fname = mem_strdup(h->mem,fname);
   if (max_entries == 0) {
-    assert(h->elems == NULL);
+    // assert(h->elems == NULL);
     return;
   }
   if (max_entries < 0 || max_entries > IC_MAX_HISTORY) max_entries = IC_MAX_HISTORY;
-  h->elems = (const char**)mem_zalloc_tp_n(h->mem, char*, max_entries );
-  if (h->elems == NULL) return;
+  // h->elems = (const char**)mem_zalloc_tp_n(h->mem, char*, max_entries );
+  // if (h->elems == NULL) return;
+  h->elems.resize(max_entries);
   h->len = max_entries;
   history_load(h);
 }
@@ -261,7 +281,8 @@ ic_private void history_save( const history_t* h ) {
   stringbuf_t* sbuf = sbuf_new(h->mem);
   if (sbuf != NULL) {
     for( int i = 0; i < h->count; i++ )  {
-      if (!history_write_entry(h->elems[i],f,sbuf)) break;  // error
+      // if (!history_write_entry(h->elems[i],f,sbuf)) break;  // error
+      if (!history_write_entry(h->elems[i].c_str(),f,sbuf)) break;  // error
     }
     sbuf_free(sbuf);
   }

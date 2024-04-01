@@ -29,7 +29,7 @@
 
 #if defined(IC_SEPARATE_OBJS)
 #  define ic_public     ic_extern_c 
-# if defined(__GNUC__) // includes clang and icc      
+# if (defined(__GNUC__) and !defined(__MINGW32__))   // includes clang and icc, but not mingw
 #  define ic_private    __attribute__((visibility("hidden")))
 # else
 #  define ic_private  

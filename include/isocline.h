@@ -417,6 +417,9 @@ const char* ic_completion_input( ic_completion_env_t* cenv, long* cursor );
 /// Get the completion argument passed to `ic_set_completer`.
 void* ic_completion_arg( const ic_completion_env_t* cenv );
 
+/// Are we getting a hint or full completions`.
+bool ic_completion_is_hint( const ic_completion_env_t* cenv );
+
 /// Do we have already some completions?
 bool ic_has_completions( const ic_completion_env_t* cenv );
 
