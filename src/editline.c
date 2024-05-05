@@ -866,6 +866,9 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
     return NULL;
   }
 
+  // are we moving through the history or searching
+  bool move_back = false;
+
   // caching
   if (!(env->no_highlight && env->no_bracematch)) {
     eb.attrs = attrbuf_new(env->mem);
@@ -945,6 +948,7 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
       if (eb.pos == 0 && editor_pos_is_at_end(&eb)) break;  // ESC on empty input returns with empty input
       edit_delete_all(env,&eb);      // otherwise delete the current input
       // edit_delete_line(env,&eb);  // otherwise delete the current line
+      move_back = false;
     }
     else if (c == KEY_BELL /* ^G */) {
       edit_delete_all(env,&eb);
@@ -1005,7 +1009,13 @@ static char* edit_line( ic_env_t* env, const char* prompt_text )
         }
         break;
       case KEY_UP:
-        edit_cursor_row_up(env,&eb);
+        if (!move_back && eb.pos > 0 && eb.pos == sbuf_len(eb.input)) { 
+          // if we have text already, search
+          edit_history_search_with_current_word(env,&eb);
+        } else {
+          move_back = true;
+          edit_cursor_row_up(env,&eb);
+        }
         break;
       case KEY_DOWN:
         edit_cursor_row_down(env,&eb);

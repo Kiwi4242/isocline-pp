@@ -8,7 +8,7 @@ public:
     bool Completer(const std::string &inp, std::vector<CompletionItem> &completions);
 
     // Provide a single hint, called after a new character is entered
-    bool Hint(const std::string &inp, CompletionItem &hint);
+    bool Hint(const std::string &inp, CompletionItem &hint, const bool atEnd);
 };
 
 bool StartsWith(const std::string &mainStr, const std::string &start, const bool ignoreCase)
@@ -29,9 +29,13 @@ bool StartsWith(const std::string &mainStr, const std::string &start, const bool
 }
 
 
-bool MyIsocline::Hint(const std::string &inp, CompletionItem &hint)
+bool MyIsocline::Hint(const std::string &inp, CompletionItem &hint, const bool atEnd)
 {
     hint.Set("", 0, 0);
+    if (!atEnd) {
+        return false;
+    }
+    
     if (inp == "To" || inp == "Tod" || inp == "Toda" || inp == "Today") {
         hint.Set("Today", inp.size(), 0);
         return true;
@@ -63,7 +67,7 @@ int main()
   iso.Printf("[b]Welcome to CmdNG[/b]\n\n");
   
   // enable history; use a NULL filename to not persist history to disk
-  iso.SetHistory("history.txt", -1 /* default entries (= 200) */);
+  iso.SetHistoryFile("history.txt", -1 /* default entries (= 200) */);
 
   // enable completion with a default completion function
   // set_default_completer(&InputCompleter, &shell);

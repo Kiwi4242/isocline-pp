@@ -16,7 +16,7 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs )
     eb->history_idx = 0;          // and start again 
     eb->modified = false;    
   }
-  const char* entry = history_get(env->history,eb->history_idx + ofs);
+  const char* entry = history_get(env->history,eb->history_idx + ofs).c_str();
   // debug_msg( "edit: history: at: %d + %d, found: %s\n", eb->history_idx, ofs, entry);
   if (entry == NULL) {
     term_beep(env->term);
@@ -139,7 +139,7 @@ static void edit_history_search(ic_env_t* env, editor_t* eb, char* initial ) {
 
   // Incremental search
 again:
-  hentry = history_get(env->history,hidx);
+  hentry = history_get(env->history,hidx).c_str();
   if (hentry != NULL) {
     sbuf_appendf(eb->extra, "[ic-info]%zd. [/][ic-diminish][!pre]", hidx);
     sbuf_append_n( eb->extra, hentry, match_pos );      

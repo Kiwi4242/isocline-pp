@@ -36,108 +36,50 @@ public:
 class IsoclinePP {
 protected:
     std::string curInp;
+    // bool useCustomHistory;
 public:
     IsoclinePP();
 
     bool StyleDef(const std::string &name, const std::string &style);
     bool Printf(const std::string &fmt, const std::string st="");
-    bool SetHistory(const std::string &file, const int n=-1);
     void EnableAutoTab(const bool);
     void EnableHint(const bool);
 
+    // use the built-in history
+    bool SetHistoryFile(const std::string &file, const int n=-1);
     virtual void AddHistory(const std::string &statement);
     virtual void AddHistory(const std::vector<std::string> &his);
+
+    // functions to use a custom history
+    void UseCustomHistory();
+    virtual int HistoryCount();
+    virtual std::string GetHistoryItem(const ssize_t n);
+    virtual void HistoryDelete(const ssize_t ind, const ssize_t n);
+    virtual void HistoryAdd(const std::string &st);
 
     // Complete the string in inp, return match in completions and the prefix that was matched in pref, called when the user presses tab
     virtual bool Completer(const std::string &inp, std::vector<CompletionItem> &completions) = 0;
 
     // Provide a single hint, called after a new character is entered
-    virtual bool Hint(const std::string &inp, CompletionItem &);
+    virtual bool Hint(const std::string &inp, CompletionItem &, const bool atEnd);
 
     void EnableMultiLine(const bool enable);
-#ifdef TODO
-    /*! \brief Completions callback type definition.
-     *
-     * \e contextLen is counted in Unicode code points (not in bytes!).
-     *
-     * For user input:
-     * if ( obj.me
-     *
-     * input == "if ( obj.me"
-     * contextLen == 2 (depending on \e set_word_break_characters())
-     *
-     * Client application is free to update \e contextLen to be 6 (or any other non-negative
-     * number not greater than the number of code points in input) if it makes better sense
-     * for given client application semantics.
-     *
-     * \param input - UTF-8 encoded input entered by the user until current cursor position.
-     * \param[in,out] contextLen - length of the additional context to provide while displaying completions.
-     * \return A list of user completions.
-     */
-    typedef std::function<completions_t ( std::string const& input, int& contextLen )> completion_callback_t;
-
-    /*! \brief Hints callback type definition.
-     *
-     * \e contextLen is counted in Unicode code points (not in bytes!).
-     *
-     * For user input:
-     * if ( obj.me
-     *
-     * input == "if ( obj.me"
-     * contextLen == 2 (depending on \e set_word_break_characters())
-     *
-     * Client application is free to update \e contextLen to be 6 (or any other non-negative
-     * number not greater than the number of code points in input) if it makes better sense
-     * for given client application semantics.
-     *
-     * \param input - UTF-8 encoded input entered by the user until current cursor position.
-     * \param contextLen[in,out] - length of the additional context to provide while displaying hints.
-     * \param color - a color used for displaying hints.
-     * \return A list of possible hints.
-     */
-    typedef std::function<hints_t ( std::string const& input, int& contextLen, Color& color )> hint_callback_t;
-#endif
     
     std::string ReadLine(const std::string &prompt);
 
-    /*! \brief Print formatted string to standard output.
+    /*! \brief Print formatted string to standard output
      *
+     * Print to the terminal while respection bbcode markup. 
      * This function ensures proper handling of ANSI escape sequences
      * contained in printed data, which is especially useful on Windows
      * since Unixes handle them correctly out of the box.
      *
-     * \param fmt - printf style format.
+     * For example:
+     * ```
+     * Print("[b]bold, [i]bold and italic[/i], [red]red and bold[/][/b] default.");
+     * 
+     * \param msg - string to be printed
      */
-    // void print( char const* fmt, ... );
-
-    void history_add( std::string const& line );
-
-    /*! \brief Synchronize REPL's history with given file.
-     *
-     * Synchronizing means loading existing history from given file,
-     * merging it with current history sorted by timestamps,
-     * saving merged version to given file,
-     * keeping merged version as current REPL's history.
-     *
-     * This call is an equivalent of calling:
-     * history_save( "some-file" );
-     * history_load( "some-file" );
-     *
-     * \param filename - a path to the file with which REPL's current history should be synchronized.
-     * \return True iff history file was successfully created.
-     */
-    bool history_sync( std::string const& filename );
-
-    /*! \brief Save REPL's history into given file.
-     *
-     * Saving means loading existing history from given file,
-     * merging it with current history sorted by timestamps,
-     * saving merged version to given file,
-     * keeping original (NOT merged) version as current REPL's history.
-     *
-     * \param filename - a path to the file where REPL's history should be saved.
-     * \return True iff history file was successfully created.
-     */
-    bool history_save( std::string const& filename );
+    void Print(const std::string &msg);
 
 };

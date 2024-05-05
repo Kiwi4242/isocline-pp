@@ -20,24 +20,45 @@
 #include "history.h"
 #include "stringbuf.h"
 
-#define IC_MAX_HISTORY (200)
 
+// rewritten to use C++ containers
+// also allow main program to use own history
 typedef std::vector<std::string> StrVec;
 
 struct history_s {
-  unsigned int  count;              // current number of entries in use
-  ssize_t  len;                // size of elems 
-  // const char** elems;       // history items (up to count)
-  StrVec elems;
+  ic_history_count_fun_t *count_fun;
+  ic_history_fun_t *get_fun;  
+  ic_history_index_sub_t *delete_fun;
+  ic_history_st_sub_t *push_fun;
+  void *historyData;
+  bool useDefault;
 
-  const char*  fname;         // history file
+  unsigned int  count;         // current number of entries in use
+  ssize_t  len;                // size of elems 
+  StrVec elems;                // history items
+
+  std::string  fname;          // history file
   alloc_t* mem;
   bool     allow_duplicates;   // allow duplicate entries?
 };
 
+
+void history_set_custom(history_t* h, ic_history_count_fun_t *c, ic_history_fun_t *g, ic_history_index_sub_t *d,
+                       ic_history_st_sub_t *p, void *data) {
+  h->count_fun = c;
+  h->get_fun = g;
+  h->delete_fun = d;
+  h->push_fun = p;
+  h->historyData = data;
+  h->useDefault = false;
+}
+
+
 ic_private history_t* history_new(alloc_t* mem) {
   history_t* h = mem_zalloc_tp(mem,history_t);
   h->mem = mem;
+  h->useDefault = true;
+  h->count = 0;
   return h;
 }
 
@@ -45,13 +66,8 @@ ic_private void history_free(history_t* h) {
   if (h == NULL) return;
   history_clear(h);
   if (h->len > 0) {
-    // mem_free( h->mem, h->elems );
-    // h->elems = NULL;
     h->elems.clear();
-    h->len = 0;
   }
-  mem_free(h->mem, h->fname);
-  h->fname = NULL;
   mem_free(h->mem, h); // free ourselves
 }
 
@@ -62,7 +78,13 @@ ic_private bool history_enable_duplicates( history_t* h, bool enable ) {
 }
 
 ic_private ssize_t  history_count(const history_t* h) {
-  return h->count;
+  if (h->useDefault) {
+    return h->count;
+  }
+  if (h->count_fun) {
+    return h->count_fun(h->historyData);
+  }
+  return 0;
 }
 
 //-------------------------------------------------------------
@@ -78,50 +100,56 @@ ic_private bool history_update( history_t* h, const char* entry ) {
 }
 
 static void history_delete_at( history_t* h, ssize_t idx ) {
-  if (idx < 0 || idx >= h->count) return;
-  // mem_free(h->mem, h->elems[idx]);
-  for(unsigned int i = idx+1; i < h->count; i++) {
-    h->elems[i-1] = h->elems[i];
+  if (h->useDefault) {
+    ssize_t count = history_count(h);
+    if (idx < 0 || idx >= count) return;
+    for(unsigned int i = idx+1; i < count; i++) {
+      h->elems[i-1] = h->elems[i];
+    }
+    h->elems.erase(h->elems.begin()+count-1);
+    h->count--;
+  } {
+    if (h->delete_fun) {
+      h->delete_fun(h->historyData, idx, 1);
+    }
   }
-  h->elems.erase(h->elems.begin()+h->count-1);
-  h->count--;
 }
 
 ic_private bool history_push( history_t* h, const char* entry ) {
   // if (h->len <= 0 || entry==NULL)  return false;
   if (entry==NULL)  return false;
-  // remove any older duplicate
-  if (!h->allow_duplicates) {
-    for(unsigned int i = 0; i < h->count; i++) {
-      // if (strcmp(h->elems[i],entry) == 0) {
-      if (h->elems[i] == entry) {
-        history_delete_at(h,i);
+  if (h->useDefault) {
+    // remove any older duplicate
+    if (!h->allow_duplicates) {
+      for(unsigned int i = 0; i < h->count; i++) {
+        if (h->elems[i] == entry) {
+          history_delete_at(h,i);
+        }
       }
     }
+    h->elems.push_back(entry);   // mem_strdup(h->mem,entry);
+    h->count++;
+  } else {
+    if (h->push_fun) {
+      h->push_fun(h->historyData, entry);
+    }
   }
-#if 0  
-  // insert at front
-  if (h->count == h->len) {
-    // delete oldest entry
-    history_delete_at(h,0);    
-  }
-  assert(h->count < h->len);
-#endif  
-  h->elems.push_back(entry);   // mem_strdup(h->mem,entry);
-  h->count++;
   return true;
 }
 
 
 static void history_remove_last_n( history_t* h, ssize_t n ) {
   if (n <= 0) return;
-  if (n > h->count) n = h->count;
-  // for( ssize_t i = h->count - n; i < h->count; i++) {
-  //   mem_free( h->mem, h->elems[i] );
-  // }
-  h->elems.erase(h->elems.begin()+h->count-n, h->elems.end());
-  h->count -= n;
-  assert(h->count >= 0);    
+  if (h->useDefault) {
+    if (n > h->count) n = h->count;
+    h->elems.erase(h->elems.begin()+h->count-n, h->elems.end());
+    h->count -= n;
+    assert(h->count >= 0);    
+  } else {
+    if (h->delete_fun) {
+      h->delete_fun(h->historyData, 0, -n);
+    }
+  }
 }
 
 ic_private void history_remove_last(history_t* h) {
@@ -129,33 +157,44 @@ ic_private void history_remove_last(history_t* h) {
 }
 
 ic_private void history_clear(history_t* h) {
-  history_remove_last_n( h, h->count );
+  history_remove_last_n( h, history_count(h) );
 }
 
-ic_private const char* history_get( const history_t* h, ssize_t n ) {
-  if (n < 0 || n >= h->count) return NULL;
-  // return h->elems[h->count - n - 1];
-  return h->elems[h->count - n - 1].c_str();
+ic_private const std::string history_get( const history_t* h, ssize_t n ) {
+  // only called in history_search - has n in range
+  if (h->useDefault) {
+    return h->elems[h->count - n - 1];
+  } else {
+    if (h->get_fun) {
+      return h->get_fun(h->historyData, n);
+    }
+  }
+  return "";
 }
 
 ic_private bool history_search( const history_t* h, ssize_t from /*including*/, const char* search, bool backward, ssize_t* hidx, ssize_t* hpos ) {
-  const char* p = NULL;
-  ssize_t i;
+  size_t pos = std::string::npos;
+  size_t count = history_count(h);
+  int ind = -1;
   if (backward) {
-    for( i = from; i < h->count; i++ ) {
-      p = strstr( history_get(h,i), search);
-      if (p != NULL) break;
+    for(size_t i = from; i < count; i++ ) {
+      if ((pos = history_get(h,i).find(search)) != std::string::npos) {
+        ind = i;
+        break;
+     }
     }
   }
   else {
-    for( i = from; i >= 0; i-- ) {
-      p = strstr( history_get(h,i), search);
-      if (p != NULL) break;
+    for(int i = from; i >= 0; i-- ) {
+      if ((pos = history_get(h,i).find(search)) != std::string::npos) {
+        ind = i;
+        break;
+     }
     }
   }
-  if (p == NULL) return false;
-  if (hidx != NULL) *hidx = i;
-  if (hpos != NULL) *hpos = (p - history_get(h,i));
+  if (pos == std::string::npos) return false;
+  if (hidx != NULL) *hidx = ind;
+  if (hpos != NULL) *hpos = pos;
   return true;
 }
 
@@ -165,16 +204,13 @@ ic_private bool history_search( const history_t* h, ssize_t from /*including*/, 
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries ) {
   history_clear(h);
-  h->fname = mem_strdup(h->mem,fname);
+  h->fname = fname;
   if (max_entries == 0) {
     // assert(h->elems == NULL);
     return;
   }
-  if (max_entries < 0 || max_entries > IC_MAX_HISTORY) max_entries = IC_MAX_HISTORY;
-  // h->elems = (const char**)mem_zalloc_tp_n(h->mem, char*, max_entries );
-  // if (h->elems == NULL) return;
+  if (max_entries < 0) max_entries = 100;
   h->elems.resize(max_entries);
-  h->len = max_entries;
   history_load(h);
 }
 
@@ -258,8 +294,8 @@ static bool history_write_entry( const char* entry, FILE* f, stringbuf_t* sbuf )
 }
 
 ic_private void history_load( history_t* h ) {
-  if (h->fname == NULL) return;
-  FILE* f = fopen(h->fname, "r");
+  if (h->fname.length() == 0) return;
+  FILE* f = fopen(h->fname.c_str(), "r");
   if (f == NULL) return;
   stringbuf_t* sbuf = sbuf_new(h->mem);
   if (sbuf != NULL) {
@@ -272,16 +308,15 @@ ic_private void history_load( history_t* h ) {
 }
 
 ic_private void history_save( const history_t* h ) {
-  if (h->fname == NULL) return;
-  FILE* f = fopen(h->fname, "w");
+  if (h->fname.length() == 0) return;
+  FILE* f = fopen(h->fname.c_str(), "w");
   if (f == NULL) return;
-  #ifndef _WIN32
+#ifndef _WIN32
   chmod(h->fname,S_IRUSR|S_IWUSR);
-  #endif
+#endif
   stringbuf_t* sbuf = sbuf_new(h->mem);
   if (sbuf != NULL) {
     for( int i = 0; i < h->count; i++ )  {
-      // if (!history_write_entry(h->elems[i],f,sbuf)) break;  // error
       if (!history_write_entry(h->elems[i].c_str(),f,sbuf)) break;  // error
     }
     sbuf_free(sbuf);
