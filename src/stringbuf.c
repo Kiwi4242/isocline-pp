@@ -365,6 +365,10 @@ static ssize_t str_for_each_row( const char* s, ssize_t len, ssize_t termw, ssiz
       rstart = i+1;
       rcol = 0;
     }
+    // JGB debugging
+    if (s[i] == 0) {
+      printf("String error .%s. %d %ld", s, i, len);
+    }
     assert (s[i] != 0);
     i += next;
     rcol += w;

@@ -16,7 +16,9 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs )
     eb->history_idx = 0;          // and start again 
     eb->modified = false;    
   }
-  const char* entry = history_get(env->history,eb->history_idx + ofs).c_str();
+  // Need to ensure that st is not deleted before it is used.
+  std::string st = history_get(env->history,eb->history_idx + ofs);
+  const char* entry = st.c_str();
   // debug_msg( "edit: history: at: %d + %d, found: %s\n", eb->history_idx, ofs, entry);
   if (entry == NULL) {
     term_beep(env->term);
